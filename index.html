@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMEI Generator</title>
+    <title>IMEI Generator with TAC Lookup</title>
     <style>
         :root {
             --primary: #3498db;
             --primary-dark: #2980b9;
             --secondary: #2ecc71;
             --secondary-dark: #27ae60;
+            --accent: #9b59b6;
+            --accent-dark: #8e44ad;
             --text: #333;
             --light-text: #666;
             --border: #ddd;
@@ -35,7 +37,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             background-color: white;
             border-radius: 10px;
@@ -53,6 +55,33 @@
             text-align: center;
             margin-bottom: 30px;
             color: var(--light-text);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: var(--primary);
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         .input-form {
@@ -73,7 +102,7 @@
             color: var(--text);
         }
 
-        input {
+        input, textarea {
             padding: 12px;
             border: 1px solid var(--border);
             border-radius: 5px;
@@ -81,7 +110,12 @@
             transition: border 0.3s;
         }
 
-        input:focus {
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        input:focus, textarea:focus {
             outline: none;
             border-color: var(--primary);
         }
@@ -111,13 +145,18 @@
             transform: scale(0.98);
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .primary-button {
             background-color: var(--primary);
             color: white;
             flex: 1;
         }
 
-        .primary-button:hover {
+        .primary-button:hover:not(:disabled) {
             background-color: var(--primary-dark);
         }
 
@@ -126,8 +165,17 @@
             color: white;
         }
 
-        .secondary-button:hover {
+        .secondary-button:hover:not(:disabled) {
             background-color: var(--secondary-dark);
+        }
+
+        .accent-button {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .accent-button:hover:not(:disabled) {
+            background-color: var(--accent-dark);
         }
 
         .results-container {
@@ -140,16 +188,8 @@
             color: var(--primary-dark);
         }
 
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
         .results-table-wrapper {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid var(--border);
             border-radius: 5px;
@@ -169,6 +209,9 @@
         th {
             background-color: #f1f1f1;
             font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         tr:nth-child(even) {
@@ -185,11 +228,85 @@
             font-size: 14px;
         }
 
+        .success {
+            color: #2ecc71;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
         .hidden {
             display: none;
         }
 
-        @media (max-width: 600px) {
+        .file-upload {
+            position: relative;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 100px;
+            text-align: right;
+            opacity: 0;
+            outline: none;
+            cursor: pointer;
+            display: block;
+        }
+
+        .file-upload-btn {
+            display: inline-block;
+            padding: 8px 20px;
+            background: #f1f1f1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-weight: 500;
+            color: #666;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .file-upload:hover .file-upload-btn {
+            background: #e1e1e1;
+        }
+
+        .file-name {
+            margin-left: 10px;
+            font-size: 14px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: var(--primary);
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tac-count {
+            display: inline-block;
+            padding: 3px 8px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
             .container {
                 padding: 20px;
             }
@@ -197,72 +314,151 @@
             .button-group {
                 flex-direction: column;
             }
+
+            .tabs {
+                flex-direction: column;
+                border-bottom: none;
+            }
+
+            .tab {
+                border-bottom: 1px solid var(--border);
+            }
+
+            .tab.active {
+                border-bottom: 1px solid var(--primary);
+                border-left: 3px solid var(--primary);
+                padding-left: 17px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>IMEI Generator</h1>
-        <p class="app-description">Generate a list of valid IMEI numbers by incrementing a base IMEI number by 350</p>
+        <h1>IMEI Generator with TAC Lookup</h1>
+        <p class="app-description">Generate valid IMEI numbers and identify device models based on TAC database</p>
         
-        <div class="input-form">
-            <div class="form-group">
-                <label for="startingImei">Starting IMEI Number</label>
-                <input 
-                    type="text" 
-                    id="startingImei" 
-                    placeholder="Enter a 15-digit IMEI number" 
-                    maxlength="15"
-                    pattern="[0-9]{15}"
-                >
-                <p class="input-hint">Must be a 15-digit number</p>
-                <p id="imeiError" class="error hidden">Please enter a valid 15-digit IMEI number</p>
+        <div class="tabs">
+            <div class="tab active" data-tab="generator">Generator</div>
+            <div class="tab" data-tab="tac-database">TAC Database <span id="tacCount" class="tac-count">0</span></div>
+        </div>
+        
+        <div id="generator-tab" class="tab-content active">
+            <div class="input-form">
+                <div class="form-group">
+                    <label for="startingImei">Starting IMEI Number</label>
+                    <input 
+                        type="text" 
+                        id="startingImei" 
+                        placeholder="Enter a 15-digit IMEI number" 
+                        maxlength="15"
+                        pattern="[0-9]{15}"
+                    >
+                    <p class="input-hint">Must be a 15-digit number</p>
+                    <p id="imeiError" class="error hidden">Please enter a valid 15-digit IMEI number</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quantity">Quantity</label>
+                    <input 
+                        type="number" 
+                        id="quantity" 
+                        placeholder="How many IMEIs to generate" 
+                        min="1"
+                        max="10000"
+                        value="10"
+                    >
+                    <p class="input-hint">Maximum: 10,000 numbers</p>
+                    <p id="quantityError" class="error hidden">Please enter a number between 1 and 10,000</p>
+                </div>
+                
+                <div class="button-group">
+                    <button id="generateBtn" class="primary-button">Generate IMEIs</button>
+                    <button id="downloadBtn" class="secondary-button" disabled>Download CSV</button>
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="quantity">Quantity</label>
-                <input 
-                    type="number" 
-                    id="quantity" 
-                    placeholder="How many IMEIs to generate" 
-                    min="1"
-                    max="10000"
-                    value="10"
-                >
-                <p class="input-hint">Maximum: 10,000 numbers</p>
-                <p id="quantityError" class="error hidden">Please enter a number between 1 and 10,000</p>
-            </div>
-            
-            <div class="button-group">
-                <button id="generateBtn" class="primary-button">Generate IMEIs</button>
-                <button id="downloadBtn" class="secondary-button" disabled>Download CSV</button>
+            <div id="resultsContainer" class="results-container hidden">
+                <div class="result-stats">
+                    <span id="resultCount">0</span> IMEI numbers generated
+                </div>
+                
+                <div class="results-table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>IMEI Number</th>
+                                <th>TAC</th>
+                                <th>Brand</th>
+                                <th>Model</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- Results will be added here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         
-        <div id="resultsContainer" class="results-container hidden">
-            <div class="result-stats">
-                <span id="resultCount">0</span> IMEI numbers generated
+        <div id="tac-database-tab" class="tab-content">
+            <div class="input-form">
+                <div class="form-group">
+                    <label for="tacFile">Upload TAC Database (CSV)</label>
+                    <div class="file-upload">
+                        <div class="file-upload-btn">Choose File</div>
+                        <input type="file" id="tacFile" accept=".csv">
+                        <span id="fileName" class="file-name">No file chosen</span>
+                    </div>
+                    <p class="input-hint">CSV file with columns: TAC,Brand,Model</p>
+                    <p id="fileError" class="error hidden">Invalid file format</p>
+                    <p id="fileSuccess" class="success hidden">File uploaded successfully</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tacManual">Or Paste TAC Data</label>
+                    <textarea 
+                        id="tacManual" 
+                        placeholder="Format: TAC,Brand,Model (one entry per line)&#10;Example:&#10;12345678,Samsung,Galaxy S21&#10;87654321,Apple,iPhone 13"
+                    ></textarea>
+                    <p class="input-hint">Each line should contain TAC,Brand,Model</p>
+                </div>
+                
+                <div class="button-group">
+                    <button id="saveTacBtn" class="accent-button">Save TAC Database</button>
+                    <button id="clearTacBtn" class="secondary-button">Clear Database</button>
+                </div>
             </div>
             
-            <div class="results-table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>IMEI Number</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultsTableBody">
-                        <!-- Results will be added here -->
-                    </tbody>
-                </table>
+            <div id="tacListContainer" class="results-container hidden">
+                <div class="result-stats">
+                    <span id="tacResultCount">0</span> TAC entries in database
+                </div>
+                
+                <div class="results-table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>TAC</th>
+                                <th>Brand</th>
+                                <th>Model</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tacTableBody">
+                            <!-- TAC entries will be added here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // DOM elements
+        // TAC Database
+        let tacDatabase = {};
+        
+        // DOM elements - Generator tab
         const startingImeiInput = document.getElementById('startingImei');
         const quantityInput = document.getElementById('quantity');
         const generateBtn = document.getElementById('generateBtn');
@@ -273,16 +469,251 @@
         const imeiError = document.getElementById('imeiError');
         const quantityError = document.getElementById('quantityError');
         
+        // DOM elements - TAC Database tab
+        const tacFileInput = document.getElementById('tacFile');
+        const fileName = document.getElementById('fileName');
+        const fileError = document.getElementById('fileError');
+        const fileSuccess = document.getElementById('fileSuccess');
+        const tacManualInput = document.getElementById('tacManual');
+        const saveTacBtn = document.getElementById('saveTacBtn');
+        const clearTacBtn = document.getElementById('clearTacBtn');
+        const tacListContainer = document.getElementById('tacListContainer');
+        const tacTableBody = document.getElementById('tacTableBody');
+        const tacResultCount = document.getElementById('tacResultCount');
+        const tacCountBadge = document.getElementById('tacCount');
+        
+        // Tab navigation
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
         // Store generated IMEIs for download
         let generatedImeis = [];
         
-        // Event listeners
-        generateBtn.addEventListener('click', generateImeis);
-        downloadBtn.addEventListener('click', downloadCsv);
+        // Initialize the app
+        function init() {
+            // Load TAC database from local storage
+            loadTacDatabase();
+            
+            // Set up event listeners
+            setupEventListeners();
+        }
         
-        // Validate inputs and display errors when user leaves the field
-        startingImeiInput.addEventListener('blur', validateImei);
-        quantityInput.addEventListener('blur', validateQuantity);
+        function setupEventListeners() {
+            // Tab navigation
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    activateTab(tabId);
+                });
+            });
+            
+            // Generator tab events
+            generateBtn.addEventListener('click', generateImeis);
+            downloadBtn.addEventListener('click', downloadCsv);
+            startingImeiInput.addEventListener('blur', validateImei);
+            quantityInput.addEventListener('blur', validateQuantity);
+            
+            // TAC Database tab events
+            tacFileInput.addEventListener('change', handleFileUpload);
+            saveTacBtn.addEventListener('click', saveTacDatabase);
+            clearTacBtn.addEventListener('click', clearTacDatabase);
+        }
+        
+        // Activate the selected tab
+        function activateTab(tabId) {
+            // Deactivate all tabs
+            tabs.forEach(tab => tab.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Activate selected tab
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+        }
+        
+        // Load TAC database from local storage
+        function loadTacDatabase() {
+            const savedTacDb = localStorage.getItem('tacDatabase');
+            if (savedTacDb) {
+                tacDatabase = JSON.parse(savedTacDb);
+                updateTacDatabaseUI();
+            }
+        }
+        
+        // Save TAC database to local storage
+        function saveTacDatabase() {
+            // Get data from textarea
+            const manualData = tacManualInput.value.trim();
+            
+            if (manualData) {
+                // Parse manual input
+                const lines = manualData.split('\n');
+                
+                lines.forEach(line => {
+                    const parts = line.split(',');
+                    if (parts.length >= 3) {
+                        const tac = parts[0].trim();
+                        // Check if TAC is valid (8 digits)
+                        if (/^\d{8}$/.test(tac)) {
+                            tacDatabase[tac] = {
+                                brand: parts[1].trim(),
+                                model: parts.slice(2).join(',').trim() // Handle commas in model names
+                            };
+                        }
+                    }
+                });
+                
+                // Clear textarea
+                tacManualInput.value = '';
+            }
+            
+            // Save to local storage
+            localStorage.setItem('tacDatabase', JSON.stringify(tacDatabase));
+            
+            // Update UI
+            updateTacDatabaseUI();
+            
+            // Show success message
+            fileSuccess.textContent = 'TAC database updated successfully';
+            fileSuccess.classList.remove('hidden');
+            setTimeout(() => {
+                fileSuccess.classList.add('hidden');
+            }, 3000);
+        }
+        
+        // Clear TAC database
+        function clearTacDatabase() {
+            if (confirm('Are you sure you want to clear the TAC database?')) {
+                tacDatabase = {};
+                localStorage.removeItem('tacDatabase');
+                updateTacDatabaseUI();
+                
+                // Clear UI elements
+                tacManualInput.value = '';
+                tacFileInput.value = '';
+                fileName.textContent = 'No file chosen';
+                
+                // Show success message
+                fileSuccess.textContent = 'TAC database cleared successfully';
+                fileSuccess.classList.remove('hidden');
+                setTimeout(() => {
+                    fileSuccess.classList.add('hidden');
+                }, 3000);
+            }
+        }
+        
+        // Update TAC database UI
+        function updateTacDatabaseUI() {
+            // Update count badge
+            const tacCount = Object.keys(tacDatabase).length;
+            tacCountBadge.textContent = tacCount;
+            tacResultCount.textContent = tacCount;
+            
+            // Clear table
+            tacTableBody.innerHTML = '';
+            
+            // Hide container if no entries
+            if (tacCount === 0) {
+                tacListContainer.classList.add('hidden');
+                return;
+            }
+            
+            // Show container and populate table
+            tacListContainer.classList.remove('hidden');
+            
+            // Sort TACs for better display
+            const sortedTacs = Object.keys(tacDatabase).sort();
+            
+            // Add entries to table
+            sortedTacs.forEach(tac => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${tac}</td>
+                    <td>${tacDatabase[tac].brand}</td>
+                    <td>${tacDatabase[tac].model}</td>
+                `;
+                tacTableBody.appendChild(row);
+            });
+        }
+        
+        // Handle file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            fileName.textContent = file.name;
+            
+            // Check file type
+            if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+                fileError.textContent = 'Please upload a CSV file';
+                fileError.classList.remove('hidden');
+                fileSuccess.classList.add('hidden');
+                return;
+            }
+            
+            // Hide error message
+            fileError.classList.add('hidden');
+            
+            // Read file
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const contents = e.target.result;
+                
+                // Parse CSV
+                const lines = contents.split('\n');
+                
+                // Check if first line is header
+                let startIndex = 0;
+                const firstLine = lines[0].toLowerCase();
+                if (firstLine.includes('tac') && (firstLine.includes('brand') || firstLine.includes('model'))) {
+                    startIndex = 1; // Skip header
+                }
+                
+                // Process lines
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const parts = line.split(',');
+                    if (parts.length >= 3) {
+                        const tac = parts[0].trim();
+                        // Check if TAC is valid (8 digits)
+                        if (/^\d{8}$/.test(tac)) {
+                            tacDatabase[tac] = {
+                                brand: parts[1].trim(),
+                                model: parts.slice(2).join(',').trim() // Handle commas in model names
+                            };
+                        }
+                    }
+                }
+                
+                // Save to local storage
+                localStorage.setItem('tacDatabase', JSON.stringify(tacDatabase));
+                
+                // Update UI
+                updateTacDatabaseUI();
+                
+                // Show success message
+                fileSuccess.textContent = 'File uploaded successfully';
+                fileSuccess.classList.remove('hidden');
+                setTimeout(() => {
+                    fileSuccess.classList.add('hidden');
+                }, 3000);
+                
+                // Add to textarea for editing (optional)
+                const dbEntries = [];
+                Object.keys(tacDatabase).forEach(tac => {
+                    dbEntries.push(`${tac},${tacDatabase[tac].brand},${tacDatabase[tac].model}`);
+                });
+                tacManualInput.value = dbEntries.join('\n');
+            };
+            
+            reader.onerror = function() {
+                fileError.textContent = 'Error reading file';
+                fileError.classList.remove('hidden');
+            };
+            
+            reader.readAsText(file);
+        }
         
         // Implement the Luhn algorithm to check if an IMEI is valid
         function isValidImei(imei) {
@@ -395,10 +826,25 @@
                     status = "Adjusted";
                 }
                 
+                // Extract TAC (first 8 digits)
+                const tac = finalImei.substring(0, 8);
+                
+                // Look up device info
+                let brand = "Unknown";
+                let model = "Unknown";
+                
+                if (tacDatabase[tac]) {
+                    brand = tacDatabase[tac].brand;
+                    model = tacDatabase[tac].model;
+                }
+                
                 // Add to list of generated IMEIs
                 generatedImeis.push({
                     index: i + 1,
                     imei: finalImei,
+                    tac: tac,
+                    brand: brand,
+                    model: model,
                     status: status
                 });
                 
@@ -407,6 +853,9 @@
                 row.innerHTML = `
                     <td>${i + 1}</td>
                     <td>${finalImei}</td>
+                    <td>${tac}</td>
+                    <td>${brand}</td>
+                    <td>${model}</td>
                     <td>${status}</td>
                 `;
                 resultsTableBody.appendChild(row);
@@ -425,10 +874,10 @@
             }
             
             // Create CSV content
-            let csvContent = "data:text/csv;charset=utf-8,Index,IMEI,Status\n";
+            let csvContent = "data:text/csv;charset=utf-8,Index,IMEI,TAC,Brand,Model,Status\n";
             
             generatedImeis.forEach(item => {
-                csvContent += `${item.index},${item.imei},${item.status}\n`;
+                csvContent += `${item.index},${item.imei},${item.tac},${item.brand},${item.model},${item.status}\n`;
             });
             
             // Create download link
@@ -442,6 +891,9 @@
             link.click();
             document.body.removeChild(link);
         }
+        
+        // Initialize the app
+        init();
     </script>
 </body>
 </html>
