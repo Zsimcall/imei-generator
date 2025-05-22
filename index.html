@@ -111,106 +111,145 @@
   </div>
 
   <script>
-    let tacDatabase = {};
+  let tacDatabase = {};
 
-    // DOM elements
-    const startingImeiInput = document.getElementById('startingImei');
-    const quantityInput = document.getElementById('quantity');
-    const generateBtn = document.getElementById('generateBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const resultsTableBody = document.getElementById('resultsTableBody');
-    const resultCount = document.getElementById('resultCount');
-    const imeiError = document.getElementById('imeiError');
-    const quantityError = document.getElementById('quantityError');
+  // DOM elements
+  const startingImeiInput = document.getElementById('startingImei');
+  const quantityInput = document.getElementById('quantity');
+  const generateBtn = document.getElementById('generateBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resultsContainer = document.getElementById('resultsContainer');
+  const resultsTableBody = document.getElementById('resultsTableBody');
+  const resultCount = document.getElementById('resultCount');
+  const imeiError = document.getElementById('imeiError');
+  const quantityError = document.getElementById('quantityError');
 
-    // Store generated IMEIs for download
-    let generatedImeis = [];
+  let generatedImeis = [];
 
-    function validateImei() {
-      const val = startingImeiInput.value.trim();
-      const isValid = /^[0-9]{15}$/.test(val);
-      imeiError.classList.toggle('hidden', isValid);
-      return isValid;
-    }
+  // Validate inputs (unchanged)
+  function validateImei() {
+    const val = startingImeiInput.value.trim();
+    const ok = /^[0-9]{15}$/.test(val);
+    imeiError.classList.toggle('hidden', ok);
+    return ok;
+  }
+  function validateQuantity() {
+    const n = parseInt(quantityInput.value, 10);
+    const ok = n >= 1 && n <= 10000;
+    quantityError.classList.toggle('hidden', ok);
+    return ok;
+  }
 
-    function validateQuantity() {
-      const val = parseInt(quantityInput.value, 10);
-      const isValid = val >= 1 && val <= 10000;
-      quantityError.classList.toggle('hidden', isValid);
-      return isValid;
-    }
-
-    function generateImeis() {
-      if (!validateImei() || !validateQuantity()) return;
-
-      const base = startingImeiInput.value.trim().slice(0, 8);
-      const count = parseInt(quantityInput.value, 10);
-      generatedImeis = [];
-      resultsTableBody.innerHTML = '';
-
-      for (let i = 0; i < count; i++) {
-        const serial = String(i + 1).padStart(6, '0');
-        const partial = base + serial;
-        const check = partial.split('').reduce((sum, d, idx) => {
-          let val = parseInt(d, 10);
-          if (idx % 2 === 1) {
-            val *= 2;
-            if (val > 9) val -= 9;
-          }
-          return sum + val;
-        }, 0);
-        const checkDigit = (10 - (check % 10)) % 10;
-        const fullImei = partial + checkDigit;
-        const tac = fullImei.slice(0, 8);
-        const lookup = tacDatabase[tac] || {};
-        const brand = lookup.brand || 'Unknown';
-        const model = lookup.model || 'Unknown';
-
-        generatedImeis.push({ imei: fullImei, tac, serial, brand, model });
-        const row = `<tr>
-          <td>${fullImei}</td><td>${tac}</td><td>${serial}</td>
-          <td>${brand}</td><td>${model}</td>
-        </tr>`;
-        resultsTableBody.insertAdjacentHTML('beforeend', row);
+  // Luhn check-digit calculator for first 14 digits
+  function calculateCheckDigit(imei14) {
+    let sum = 0;
+    for (let i = 0; i < 14; i++) {
+      let d = parseInt(imei14.charAt(i), 10);
+      if (i % 2 === 1) {
+        d *= 2;
+        if (d > 9) d -= 9;
       }
+      sum += d;
+    }
+    return (10 - (sum % 10)) % 10;
+  }
 
-      resultCount.textContent = generatedImeis.length;
-      resultsContainer.classList.remove('hidden');
+  // Full-15-digit Luhn validator
+  function isValidIMEI(imei15) {
+    if (!/^\d{15}$/.test(imei15)) return false;
+    let sum = 0;
+    for (let i = 0; i < 15; i++) {
+      let d = parseInt(imei15.charAt(i), 10);
+      if (i % 2 === 1) {
+        d *= 2;
+        if (d > 9) d -= 9;
+      }
+      sum += d;
+    }
+    return sum % 10 === 0;
+  }
+
+  // Core: start at user IMEI, then +350 each loop, fix Luhn, collect until qty
+  function generateImeis() {
+    if (!validateImei() || !validateQuantity()) return;
+
+    generatedImeis = [];
+    resultsTableBody.innerHTML = '';
+
+    // Parse starting IMEI as integer
+    let current = parseInt(startingImeiInput.value.trim(), 10);
+    const targetCount = parseInt(quantityInput.value, 10);
+
+    while (generatedImeis.length < targetCount) {
+      current += 350;
+      // Ensure string is 15 digits (pad front if needed)
+      let str = current.toString().padStart(15, '0');
+      // Compute correct check digit for first 14 digits
+      const imei14 = str.slice(0, 14);
+      const correctCheck = isValidIMEI(str)
+        ? parseInt(str.charAt(14), 10)
+        : calculateCheckDigit(imei14);
+      const fullImei = imei14 + correctCheck;
+
+      // Lookup brand/model
+      const tac = fullImei.slice(0, 8);
+      const lookup = tacDatabase[tac] || {};
+      const brand = lookup.brand || 'Unknown';
+      const model = lookup.model || 'Unknown';
+
+      // Serial = just ordinal in list
+      const serial = String(generatedImeis.length + 1).padStart(6, '0');
+
+      generatedImeis.push({ imei: fullImei, tac, serial, brand, model });
+
+      // Render row
+      const row = `<tr>
+        <td>${fullImei}</td>
+        <td>${tac}</td>
+        <td>${serial}</td>
+        <td>${brand}</td>
+        <td>${model}</td>
+      </tr>`;
+      resultsTableBody.insertAdjacentHTML('beforeend', row);
     }
 
-    function downloadCsv() {
-      if (!generatedImeis.length) return;
-      const header = ['IMEI','TAC','Serial','Brand','Model'];
-      const rows = generatedImeis.map(r => [r.imei, r.tac, r.serial, r.brand, r.model]);
-      const csvContent = 'data:text/csv;charset=utf-8,'
-        + [header, ...rows].map(r => r.join(',')).join('\n');
-      const link = document.createElement('a');
-      link.setAttribute('href', encodeURI(csvContent));
-      link.setAttribute('download', 'generated_imeis.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    resultCount.textContent = generatedImeis.length;
+    resultsContainer.classList.remove('hidden');
+  }
 
-    function init() {
-      // Load TAC database from JSON
-      fetch('tac-database.json')
-        .then(res => res.json())
-        .then(data => {
-          tacDatabase = data;
-          document.getElementById('tacCount').textContent = Object.keys(data).length;
-        })
-        .catch(err => console.error('Failed to load TAC data:', err));
+  // CSV download (unchanged)
+  function downloadCsv() {
+    if (!generatedImeis.length) return;
+    const header = ['IMEI','TAC','Serial','Brand','Model'];
+    const rows = generatedImeis.map(r => [r.imei, r.tac, r.serial, r.brand, r.model]);
+    const csv = 'data:text/csv;charset=utf-8,' +
+      [header, ...rows].map(r => r.join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = encodeURI(csv);
+    link.download = 'generated_imeis.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
-      // Set up event handlers
-      generateBtn.addEventListener('click', generateImeis);
-      downloadBtn.addEventListener('click', downloadCsv);
-      startingImeiInput.addEventListener('blur', validateImei);
-      quantityInput.addEventListener('blur', validateQuantity);
-    }
+  // Init: fetch TAC JSON & wire events (unchanged)
+  function init() {
+    fetch('tac-database.json')
+      .then(r => r.json())
+      .then(data => {
+        tacDatabase = data;
+        document.getElementById('tacCount').textContent = Object.keys(data).length;
+      })
+      .catch(e => console.error(e));
 
-    document.addEventListener('DOMContentLoaded', init);
-  </script>
+    generateBtn.addEventListener('click', generateImeis);
+    downloadBtn.addEventListener('click', downloadCsv);
+    startingImeiInput.addEventListener('blur', validateImei);
+    quantityInput.addEventListener('blur', validateQuantity);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+
 </body>
 </html>
