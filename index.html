@@ -5,54 +5,178 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IMEI Generator with TAC Lookup</title>
   <style>
-    /* … your existing styles … */
+    :root {
+      --primary: #3498db;
+      --primary-dark: #2980b9;
+      --secondary: #2ecc71;
+      --secondary-dark: #27ae60;
+      --accent: #9b59b6;
+      --accent-dark: #8e44ad;
+      --text: #333;
+      --light-text: #666;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body {
+      background-color: #f5f7fa;
+      color: var(--text);
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      color: var(--primary-dark);
+    }
+    p.subtitle {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--light-text);
+      font-size: 1rem;
+    }
+    .input-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+    select, input {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: border-color .2s;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .error {
+      color: #e74c3c;
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+    .hidden { display: none; }
+    .button-group {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      background-color: var(--primary);
+      color: white;
+      transition: background-color .2s;
+    }
+    button.secondary-button {
+      background-color: var(--secondary);
+    }
+    button:hover {
+      background-color: var(--primary-dark);
+    }
+    button.secondary-button:hover {
+      background-color: var(--secondary-dark);
+    }
+    .tac-count {
+      grid-column: 1 / -1;
+      font-size: 0.9rem;
+      color: var(--light-text);
+      text-align: center;
+      margin-top: 20px;
+    }
+    .results-container {
+      margin-top: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+    th {
+      background-color: var(--primary);
+      color: white;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>IMEI Generator with TAC Lookup</h1>
-    <p>Enter IMEI or choose Make & Model to generate IMEIs.</p>
-    <div class="input-form">
+    <h1>IMEI Generator</h1>
+    <p class="subtitle">Generate valid IMEIs with built-in Make &amp; Model lookups.</p>
 
-      <!-- START: New dropdowns -->
+    <div class="input-form">
+      <!-- Make & Model selectors -->
       <div class="form-group">
         <label for="makeSelect">Make</label>
         <select id="makeSelect">
-          <option value="">-- Any --</option>
+          <option value="">– Any –</option>
         </select>
       </div>
       <div class="form-group">
         <label for="modelSelect">Model</label>
         <select id="modelSelect" disabled>
-          <option value="">-- Any --</option>
+          <option value="">– Any –</option>
         </select>
       </div>
-      <!-- END: New dropdowns -->
 
+      <!-- IMEI & Quantity inputs -->
       <div class="form-group">
-        <label for="startingImei">Starting IMEI Number</label>
-        <input id="startingImei" type="text" placeholder="15-digit IMEI" maxlength="15" pattern="[0-9]{15}">
-        <p id="imeiError" class="error hidden">Please enter a valid 15-digit IMEI</p>
+        <label for="startingImei">Starting IMEI</label>
+        <input id="startingImei" type="text" placeholder="15-digit IMEI" maxlength="15">
+        <p id="imeiError" class="error hidden">Enter a valid 15-digit IMEI.</p>
       </div>
       <div class="form-group">
         <label for="quantity">Quantity</label>
         <input id="quantity" type="number" min="1" max="10000" placeholder="How many?">
-        <p id="quantityError" class="error hidden">Enter between 1 and 10000</p>
+        <p id="quantityError" class="error hidden">1–10000 only.</p>
       </div>
+
+      <!-- Buttons -->
       <div class="button-group">
         <button id="generateBtn">Generate IMEIs</button>
         <button id="downloadBtn" class="secondary-button">Download CSV</button>
       </div>
-      <div class="form-group">
-        <p>TAC entries loaded: <span id="tacCount">0</span></p>
+
+      <!-- TAC count badge -->
+      <div class="tac-count">
+        Loaded TAC entries: <span id="tacCount">0</span>
       </div>
     </div>
 
+    <!-- Results table -->
     <div id="resultsContainer" class="results-container hidden">
       <div><strong>Total:</strong> <span id="resultCount">0</span></div>
       <table>
         <thead>
-          <tr><th>IMEI</th><th>TAC</th><th>Serial</th><th>Brand</th><th>Model</th></tr>
+          <tr>
+            <th>IMEI</th>
+            <th>TAC</th>
+            <th>Serial</th>
+            <th>Brand</th>
+            <th>Model</th>
+          </tr>
         </thead>
         <tbody id="resultsTableBody"></tbody>
       </table>
@@ -61,36 +185,20 @@
 
   <script>
     let tacDatabase = {};
-
-    // DOM refs
     const makeSelect       = document.getElementById('makeSelect');
     const modelSelect      = document.getElementById('modelSelect');
-    const startingImeiInput= document.getElementById('startingImei');
+    const startingImei     = document.getElementById('startingImei');
     const quantityInput    = document.getElementById('quantity');
     const generateBtn      = document.getElementById('generateBtn');
     const downloadBtn      = document.getElementById('downloadBtn');
     const resultsContainer = document.getElementById('resultsContainer');
-    const resultsTableBody = document.getElementById('resultsTableBody');
+    const resultsBody      = document.getElementById('resultsTableBody');
     const resultCount      = document.getElementById('resultCount');
     const imeiError        = document.getElementById('imeiError');
-    const quantityError    = document.getElementById('quantityError');
+    const qtyError         = document.getElementById('quantityError');
+    let generatedImeis     = [];
 
-    let generatedImeis = [];
-
-    // --- Validation ---
-    function validateImei() {
-      const ok = /^[0-9]{15}$/.test(startingImeiInput.value.trim());
-      imeiError.classList.toggle('hidden', ok);
-      return ok;
-    }
-    function validateQuantity() {
-      const n  = parseInt(quantityInput.value, 10);
-      const ok = n >= 1 && n <= 10000;
-      quantityError.classList.toggle('hidden', ok);
-      return ok;
-    }
-
-    // --- Luhn helpers ---
+    // Luhn helpers
     function calculateCheckDigit(imei14) {
       let sum = 0;
       for (let i = 0; i < 14; i++) {
@@ -103,7 +211,6 @@
       }
       return (10 - (sum % 10)) % 10;
     }
-
     function isValidIMEI(imei15) {
       if (!/^\d{15}$/.test(imei15)) return false;
       let sum = 0;
@@ -118,154 +225,149 @@
       return sum % 10 === 0;
     }
 
-    // --- Populate dropdowns ---
-    function populateMakeDropdown() {
-      const makes = [...new Set(
-        Object.values(tacDatabase).map(x => x.brand)
-      )].sort();
-      makes.forEach(make => {
-        makeSelect.add(new Option(make, make));
-      });
+    // Validation
+    function validateImei() {
+      const ok = /^[0-9]{15}$/.test(startingImei.value.trim());
+      imeiError.classList.toggle('hidden', ok);
+      return ok;
+    }
+    function validateQty() {
+      const n = +quantityInput.value;
+      const ok = n >= 1 && n <= 10000;
+      qtyError.classList.toggle('hidden', ok);
+      return ok;
     }
 
+    // Populate Make dropdown
+    function populateMakes() {
+      const makes = [...new Set(Object.values(tacDatabase).map(x => x.brand))].sort();
+      makes.forEach(m => makeSelect.add(new Option(m, m)));
+    }
+    // When Make changes, populate Models
     function onMakeChange() {
-      const selMake = makeSelect.value;
-      modelSelect.innerHTML = '<option value="">-- Any --</option>';
-      modelSelect.disabled = !selMake;
-
-      if (!selMake) return;
-
+      const make = makeSelect.value;
+      modelSelect.innerHTML = '<option value="">– Any –</option>';
+      modelSelect.disabled = !make;
+      if (!make) return;
       const models = [...new Set(
         Object.entries(tacDatabase)
-          .filter(([,info]) => info.brand === selMake)
-          .map(([,info]) => info.model)
+          .filter(([,i]) => i.brand === make)
+          .map(([,i]) => i.model)
       )].sort();
-
       models.forEach(m => modelSelect.add(new Option(m, m)));
     }
 
-    // --- Generation modes ---
-    function generateImeis() {
-      if (!validateQuantity()) return;
-      // If both dropdowns selected → random TAC mode
-      if (makeSelect.value && modelSelect.value) {
-        generateRandomImeis();
-      } else {
-        if (!validateImei()) return;
-        generateSequentialImeis();
-      }
-    }
-
-    // 1) Sequential “+350” logic (unchanged) 
-    function generateSequentialImeis() {
-      generatedImeis = [];
-      resultsTableBody.innerHTML = '';
-      let current = parseInt(startingImeiInput.value.trim(), 10);
-      const target = parseInt(quantityInput.value, 10);
-
-      while (generatedImeis.length < target) {
-        current += 350;
-        let s = String(current).padStart(15, '0');
-        const imei14    = s.slice(0, 14);
-        const check     = isValidIMEI(s)
-                          ? +s[14]
-                          : calculateCheckDigit(imei14);
-        const fullImei  = imei14 + check;
-        appendResult(fullImei);
-      }
-      finishRender();
-    }
-
-    // 2) Random TAC mode
-    function generateRandomImeis() {
-      generatedImeis = [];
-      resultsTableBody.innerHTML = '';
-      const selMake  = makeSelect.value;
-      const selModel = modelSelect.value;
-      const target   = parseInt(quantityInput.value, 10);
-      const seen     = new Set();
-
-      // Gather all TACs matching brand+model
-      const tacList = Object.entries(tacDatabase)
-        .filter(([,info]) => info.brand === selMake && info.model === selModel)
-        .map(([t]) => t);
-
-      if (tacList.length === 0) {
-        alert('No TACs found for that Make & Model.');
-        return;
-      }
-
-      while (generatedImeis.length < target) {
-        const tac       = tacList[Math.floor(Math.random() * tacList.length)];
-        const serialNum = Math.floor(Math.random() * 1_000_000);
-        const serial    = String(serialNum).padStart(6, '0');
-        const imei14    = tac + serial;
-        const check     = calculateCheckDigit(imei14);
-        const fullImei  = imei14 + check;
-
-        if (!seen.has(fullImei)) {
-          seen.add(fullImei);
-          appendResult(fullImei, tac);
-        }
-      }
-      finishRender();
-    }
-
-    // --- Render & CSV helper ---
-    function appendResult(fullImei, tacOverride) {
-      const tac    = tacOverride || fullImei.slice(0, 8);
-      const serial = fullImei.slice(8, 14);
-      const info   = tacDatabase[tac] || {};
-      const brand  = info.brand || 'Unknown';
-      const model  = info.model || 'Unknown';
-
-      generatedImeis.push({ imei: fullImei, tac, serial, brand, model });
-      const row = `<tr>
-        <td>${fullImei}</td>
+    // Append one result row
+    function appendRow(imeiStr) {
+      const tac   = imeiStr.slice(0, 8);
+      const serial= imeiStr.slice(8, 14);
+      const info  = tacDatabase[tac] || {};
+      const brand = info.brand || 'Unknown';
+      const model = info.model || 'Unknown';
+      generatedImeis.push({ imei: imeiStr, tac, serial, brand, model });
+      const tr = `<tr>
+        <td>${imeiStr}</td>
         <td>${tac}</td>
         <td>${serial}</td>
         <td>${brand}</td>
         <td>${model}</td>
       </tr>`;
-      resultsTableBody.insertAdjacentHTML('beforeend', row);
+      resultsBody.insertAdjacentHTML('beforeend', tr);
     }
 
-    function finishRender() {
+    // Sequential mode
+    function generateSequential() {
+      let curr = +startingImei.value;
+      const target = +quantityInput.value;
+      generatedImeis = [];
+      resultsBody.innerHTML = '';
+      const seen = new Set();
+      while (generatedImeis.length < target) {
+        curr += 350;
+        let s = String(curr).padStart(15, '0');
+        const imei14 = s.slice(0, 14);
+        const check = isValidIMEI(s) ? +s[14] : calculateCheckDigit(imei14);
+        const full = imei14 + check;
+        if (!seen.has(full)) {
+          seen.add(full);
+          appendRow(full);
+        }
+      }
+    }
+
+    // Random mode
+    function generateRandom() {
+      const make  = makeSelect.value;
+      const model = modelSelect.value;
+      const target= +quantityInput.value;
+      generatedImeis = [];
+      resultsBody.innerHTML = '';
+      const seen = new Set();
+      // All TACs for this pair
+      const list = Object.entries(tacDatabase)
+        .filter(([,i]) => i.brand===make && i.model===model)
+        .map(([t]) => t);
+      if (!list.length) {
+        alert('No TACs found for that Make & Model.');
+        return;
+      }
+      while (generatedImeis.length < target) {
+        const tac = list[Math.floor(Math.random()*list.length)];
+        const serialNum = Math.floor(Math.random()*1_000_000);
+        const serial = String(serialNum).padStart(6, '0');
+        const imei14 = tac + serial;
+        const full = imei14 + calculateCheckDigit(imei14);
+        if (!seen.has(full)) {
+          seen.add(full);
+          appendRow(full);
+        }
+      }
+    }
+
+    // Main generator
+    function generateImeis() {
+      if (!validateQty()) return;
+      if (makeSelect.value && modelSelect.value) {
+        generateRandom();
+      } else {
+        if (!validateImei()) return;
+        generateSequential();
+      }
       resultCount.textContent = generatedImeis.length;
       resultsContainer.classList.remove('hidden');
     }
 
+    // CSV download
     function downloadCsv() {
       if (!generatedImeis.length) return;
-      const header = ['IMEI','TAC','Serial','Brand','Model'];
-      const rows   = generatedImeis.map(r => [r.imei,r.tac,r.serial,r.brand,r.model]);
-      const csv    = 'data:text/csv;charset=utf-8,' +
-                     [header, ...rows].map(r => r.join(',')).join('\n');
-      const link   = document.createElement('a');
-      link.href    = encodeURI(csv);
-      link.download= 'generated_imeis.csv';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const hdr = ['IMEI','TAC','Serial','Brand','Model'];
+      const rows = generatedImeis.map(r => [r.imei, r.tac, r.serial, r.brand, r.model]);
+      const csv = 'data:text/csv;charset=utf-8,' +
+                  [hdr, ...rows].map(r => r.join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = encodeURI(csv);
+      a.download = 'generated_imeis.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
 
-    // --- Init ---
+    // Init
     function init() {
       fetch('tac-database.json')
-        .then(res => res.json())
+        .then(r => r.json())
         .then(data => {
           tacDatabase = data;
           document.getElementById('tacCount').textContent = Object.keys(data).length;
-          populateMakeDropdown();
+          populateMakes();
         })
         .catch(console.error);
 
-      // Listeners
       makeSelect.addEventListener('change', onMakeChange);
       generateBtn.addEventListener('click', generateImeis);
       downloadBtn.addEventListener('click', downloadCsv);
-      startingImeiInput.addEventListener('blur', validateImei);
-      quantityInput.addEventListener('blur', validateQuantity);
+      startingImei.addEventListener('blur', validateImei);
+      quantityInput.addEventListener('blur', validateQty);
     }
 
     document.addEventListener('DOMContentLoaded', init);
