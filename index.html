@@ -173,6 +173,8 @@
       <div class="button-group">
         <button id="generateBtn">Generate IMEIs</button>
         <button id="downloadBtn" class="secondary-button">Download CSV</button>
+        <button id="copyBtn" class="secondary-button">Copy IMEIs</button>
+
       </div>
 
       <div class="tac-count">
@@ -313,8 +315,12 @@
       const model = modelSelect.value;
       const target= +quantityInput.value;
       const tacList = Object.entries(tacDatabase)
-        .filter(([,i]) => i.brand===make && i.model===model)
-        .map(([t]) => t);
+  .filter(([,i]) => {
+    if (make && model) return i.brand === make && i.model === model;
+    if (make) return i.brand === make;
+    return true;
+  })
+  .map(([t]) => t);
       if (!tacList.length) {
         alert('No TACs for that Make/Model.');
         return;
@@ -337,16 +343,18 @@
 
     // Main generate
     function generateImeis() {
-      if (!validateQty()) return;
-      if (makeSelect.value && modelSelect.value) {
-        generateRandom();
-      } else {
-        if (!validateImei()) return;
-        generateSequential();
-      }
-      resultCount.textContent = generatedImeis.length;
-      resultsCtr.classList.remove('hidden');
-    }
+  if (!validateQty()) return;
+
+  if (startingImei.value.trim()) {
+    if (!validateImei()) return;
+    generateSequential();
+  } else {
+    generateRandom();
+  }
+
+  resultCount.textContent = generatedImeis.length;
+  resultsCtr.classList.remove('hidden');
+}
 
     // CSV download
     function downloadCsv() {
@@ -362,7 +370,14 @@
       a.click();
       a.remove();
     }
-
+//Copy row
+    function copyImeis() {
+  if (!generatedImeis.length) return;
+  const imeiList = generatedImeis.map(r => r.imei).join('\n');
+  navigator.clipboard.writeText(imeiList)
+    .then(() => alert('IMEIs copied to clipboard!'))
+    .catch(err => alert('Failed to copy IMEIs.'));
+}
     // Init
     function init() {
       fetch('tac-database.json')
@@ -379,6 +394,7 @@
       downloadBtn.addEventListener('click', downloadCsv);
       startingImei.addEventListener('blur', validateImei);
       quantityInput.addEventListener('blur', validateQty);
+      copyBtn.addEventListener('click', copyImeis);
     }
     document.addEventListener('DOMContentLoaded', init);
   </script>
