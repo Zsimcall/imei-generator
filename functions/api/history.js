@@ -1,6 +1,6 @@
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -44,6 +44,17 @@ export async function onRequestPost({ request, env }) {
   );
 
   await env.DB.batch(batch);
+  return json({ ok: true });
+}
+
+export async function onRequestPut({ request, env }) {
+  const { timestamp, client } = await request.json();
+  if (typeof timestamp !== 'number' || typeof client !== 'string') {
+    return json({ error: 'Invalid input' }, 400);
+  }
+  await env.DB.prepare(
+    'UPDATE imei_history SET client = ? WHERE timestamp = ?'
+  ).bind(client.trim(), timestamp).run();
   return json({ ok: true });
 }
 

@@ -140,8 +140,8 @@
       <label for="clientInput">Assign batch to client:</label>
       <input id="clientInput" type="text" list="clientDatalist" placeholder="Client name…" autocomplete="off">
       <datalist id="clientDatalist"></datalist>
-      <button id="assignBtn">Assign &amp; Save</button>
-      <a id="skipAssign" href="#">Save without client</a>
+      <button id="assignBtn">Assign Client</button>
+      <a id="skipAssign" href="#">Skip</a>
     </div>
 
     <!-- Results -->
@@ -211,15 +211,18 @@
     </div>
 
     <div class="tac-section">
-      <h3>User-Added TACs</h3>
+      <h3>All TACs</h3>
+      <input id="tacSearch" type="text" placeholder="Search by TAC, brand, or model…" style="width:100%;margin-bottom:10px">
+      <p id="tacTableCount" style="font-size:.875rem;color:#666;margin-bottom:6px"></p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr><th>TAC</th><th>Brand</th><th>Model</th><th>5G</th><th>Physical SIM</th><th>Action</th></tr>
           </thead>
-          <tbody id="tacAdditionsBody"></tbody>
+          <tbody id="tacAllBody"></tbody>
         </table>
       </div>
+      <p style="font-size:.8rem;color:#888;margin-top:8px">★ = user-added / edited</p>
     </div>
   </div>
 
@@ -261,6 +264,7 @@
   let savedClients = [];
   let generatedImeis = [];
   let currentBatchTimestamp = 0;
+  let tacAdditions = {};
 
   // ── DOM refs ──────────────────────────────────────────────────────────────
   const makeSelect    = document.getElementById('makeSelect');
@@ -289,6 +293,15 @@
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(`POST ${path} failed (${r.status})`);
+    return r.json();
+  }
+  async function apiPut(path, body) {
+    const r = await fetch(path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`PUT ${path} failed (${r.status})`);
     return r.json();
   }
   async function apiDelete(path) {
@@ -459,7 +472,7 @@
   }
 
   // ── Main generate dispatcher ──────────────────────────────────────────────
-  function generateImeis() {
+  async function generateImeis() {
     if (!validateQty()) return;
     currentBatchTimestamp = Date.now();
     if (startingImei.value.trim()) {
@@ -470,7 +483,10 @@
     }
     resultCount.textContent = generatedImeis.length;
     resultsCtr.classList.remove('hidden');
-    if (generatedImeis.length > 0) showAssignBar();
+    if (generatedImeis.length > 0) {
+      await saveBatchToHistory();
+      showAssignBar();
+    }
   }
 
   // ── CSV export (current batch) ────────────────────────────────────────────
@@ -504,23 +520,26 @@
     document.getElementById('clientDatalist').innerHTML =
       savedClients.map(c => `<option value="${c.replace(/"/g, '&quot;')}">`).join('');
   }
-  async function commitBatchToHistory(clientName) {
-    if (!generatedImeis.length) { hideAssignBar(); return; }
-    const client = clientName.trim();
-    const batch  = generatedImeis.map(r => ({ ...r, client }));
+  async function saveBatchToHistory() {
+    if (!generatedImeis.length) return;
     try {
-      await apiPost('/api/history', batch);
+      await apiPost('/api/history', generatedImeis);
+      for (const r of generatedImeis) historySet.add(r.imei);
+    } catch (e) { console.error('Auto-save failed:', e); }
+  }
+  async function assignClientToBatch(clientName) {
+    const client = clientName.trim();
+    try {
       if (client) {
-        await apiPost('/api/clients', { name: client });
+        await apiPut('/api/history', { timestamp: currentBatchTimestamp, client });
         if (!savedClients.includes(client)) {
+          await apiPost('/api/clients', { name: client });
           savedClients = [...savedClients, client].sort();
           refreshClientDatalist();
         }
+        for (const r of generatedImeis) r.client = client;
       }
-      for (const r of batch) historySet.add(r.imei);
-    } catch (e) {
-      alert('Failed to save history: ' + e.message);
-    }
+    } catch (e) { alert('Failed to assign client: ' + e.message); }
     hideAssignBar();
   }
 
@@ -587,22 +606,57 @@
   async function loadTacPanel() {
     try {
       const { additions, removals } = await apiGet('/api/tac');
-      renderTacAdditions(additions);
+      tacAdditions = additions;
+      renderAllTacs(document.getElementById('tacSearch').value);
       updateTacCounts(additions, removals);
     } catch (e) { console.error('TAC panel load failed', e); }
   }
-  function renderTacAdditions(additions) {
-    const tbody   = document.getElementById('tacAdditionsBody');
-    const entries = Object.entries(additions);
-    tbody.innerHTML = entries.length
-      ? entries.map(([tac, info]) => `<tr>
-          <td>${tac}</td><td>${info.brand}</td><td>${info.model}</td>
-          <td>${info.is5g ? 'Yes' : 'No'}</td>
-          <td>${info.hasPhysicalSim ? 'Yes' : 'No'}</td>
-          <td><button class="danger-button" style="padding:5px 12px;font-size:.85rem"
-              onclick="removeTacEntry('${tac}')">Remove</button></td>
-        </tr>`).join('')
-      : `<tr><td colspan="6" style="color:#666;font-style:italic">No user-added TACs yet.</td></tr>`;
+  function renderAllTacs(filter = '') {
+    const tbody   = document.getElementById('tacAllBody');
+    const countEl = document.getElementById('tacTableCount');
+    const q = filter.trim().toLowerCase();
+    let entries = Object.entries(tacDatabase);
+    if (q) {
+      entries = entries.filter(([tac, info]) =>
+        tac.includes(q) ||
+        (info.brand || '').toLowerCase().includes(q) ||
+        (info.model || '').toLowerCase().includes(q)
+      );
+    }
+    const total = entries.length;
+    const shown = entries.slice(0, 200);
+    countEl.textContent = total > 200
+      ? `Showing 200 of ${total.toLocaleString()} — refine search to see more`
+      : `${total.toLocaleString()} TAC${total !== 1 ? 's' : ''}`;
+    tbody.innerHTML = shown.length
+      ? shown.map(([tac, info]) => {
+          const userAdded = tac in tacAdditions;
+          const is5gVal = info.is5g != null ? (info.is5g ? 'Yes' : 'No') : '—';
+          const simVal  = info.hasPhysicalSim != null ? (info.hasPhysicalSim ? 'Yes' : 'No') : '—';
+          return `<tr>
+            <td>${tac}${userAdded ? ' <small style="color:#3b82f6">★</small>' : ''}</td>
+            <td>${info.brand || '—'}</td><td>${info.model || '—'}</td>
+            <td>${is5gVal}</td><td>${simVal}</td>
+            <td>
+              <button style="padding:4px 10px;font-size:.8rem;margin-right:4px"
+                onclick="editTacEntry('${tac}')">Edit</button>
+              <button class="danger-button" style="padding:4px 10px;font-size:.8rem"
+                onclick="removeTacEntry('${tac}')">Remove</button>
+            </td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="6" style="color:#666;font-style:italic">No TACs found.</td></tr>`;
+  }
+  function editTacEntry(tac) {
+    const info = tacDatabase[tac];
+    if (!info) return;
+    document.getElementById('newTac').value = tac;
+    document.getElementById('newBrand').value = info.brand || '';
+    document.getElementById('newModel').value = info.model || '';
+    document.getElementById('new5g').checked = !!info.is5g;
+    document.getElementById('newPhysicalSim').checked = !!info.hasPhysicalSim;
+    document.querySelector('#tacPanel .tac-section').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('newTac').focus();
   }
   function updateTacCounts(additions, removals) {
     document.getElementById('tacTotalCount').textContent   = Object.keys(tacDatabase).length;
@@ -662,6 +716,7 @@
         apiGet('/api/clients'),
       ]);
       tacDatabase  = applyTacDeltas(tacBase, tacDeltas.additions, tacDeltas.removals);
+      tacAdditions = tacDeltas.additions;
       historySet   = new Set(history.map(r => r.imei));
       savedClients = clients;
       document.getElementById('tacCount').textContent = Object.keys(tacDatabase).length;
@@ -683,9 +738,9 @@
     quantityInput.addEventListener('blur', validateQty);
 
     document.getElementById('assignBtn').addEventListener('click', () =>
-      commitBatchToHistory(clientInput.value));
+      assignClientToBatch(clientInput.value));
     document.getElementById('skipAssign').addEventListener('click', e => {
-      e.preventDefault(); commitBatchToHistory('');
+      e.preventDefault(); hideAssignBar();
     });
 
     document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
@@ -695,6 +750,8 @@
     document.getElementById('addTacBtn').addEventListener('click', addTacEntry);
     document.getElementById('removeTacBtn').addEventListener('click', () =>
       removeTacEntry(document.getElementById('removeTacInput').value.trim()));
+    document.getElementById('tacSearch').addEventListener('input', e =>
+      renderAllTacs(e.target.value));
 
     document.querySelectorAll('.tab-btn').forEach(btn =>
       btn.addEventListener('click', () => switchTab(btn.dataset.tab)));

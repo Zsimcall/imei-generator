@@ -15,6 +15,7 @@ export default {
       if (method === 'OPTIONS') return history.onRequestOptions(context);
       if (method === 'GET') return history.onRequestGet(context);
       if (method === 'POST') return history.onRequestPost(context);
+      if (method === 'PUT')    return history.onRequestPut(context);
       if (method === 'DELETE') return history.onRequestDelete(context);
     }
 
