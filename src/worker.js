@@ -1,6 +1,7 @@
 import * as history from '../functions/api/history.js';
 import * as clients from '../functions/api/clients.js';
 import * as tac from '../functions/api/tac.js';
+import * as lookup from '../functions/api/lookup.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -27,6 +28,11 @@ export default {
       if (method === 'OPTIONS') return tac.onRequestOptions(context);
       if (method === 'GET') return tac.onRequestGet(context);
       if (method === 'POST') return tac.onRequestPost(context);
+    }
+
+    if (path === '/api/lookup') {
+      if (method === 'OPTIONS') return lookup.onRequestOptions(context);
+      if (method === 'POST')    return lookup.onRequestPost(context);
     }
 
     return env.ASSETS.fetch(request);

@@ -94,6 +94,7 @@
     <button class="tab-btn active" data-tab="generatorPanel">Generator</button>
     <button class="tab-btn" data-tab="tacPanel">TAC Manager</button>
     <button class="tab-btn" data-tab="historyPanel">History</button>
+    <button class="tab-btn" data-tab="lookupPanel">IMEI Lookup</button>
   </div>
 
   <!-- ===== GENERATOR PANEL ===== -->
@@ -223,6 +224,15 @@
   </div>
 
   <!-- ===== HISTORY PANEL ===== -->
+  <div id="lookupPanel" class="tab-panel hidden">
+    <h2>IMEI Lookup</h2>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="lookupImei" type="text" maxlength="15" placeholder="Enter 15-digit IMEI" style="flex:1" />
+      <button id="lookupBtn">Look Up</button>
+    </div>
+    <div id="lookupResult"></div>
+  </div>
+
   <div id="historyPanel" class="tab-panel hidden">
     <div class="panel-header">
       <h2>IMEI History</h2>
@@ -691,6 +701,39 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  document.getElementById('lookupBtn').addEventListener('click', async () => {
+    const imei = document.getElementById('lookupImei').value.trim();
+    const resultDiv = document.getElementById('lookupResult');
+    resultDiv.textContent = 'Looking up…';
+
+    const resp = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imei }),
+    });
+    const result = await resp.json();
+
+    if (!result.success) {
+      resultDiv.innerHTML = `<p style="color:red">${result.error}</p>`;
+      return;
+    }
+
+    const d = result.data;
+    resultDiv.innerHTML = `
+      <table>
+        <tr><td><b>TAC</b></td><td>${d.tac}</td></tr>
+        <tr><td><b>Make</b></td><td>${d.make}</td></tr>
+        <tr><td><b>Model</b></td><td>${d.model}</td></tr>
+        <tr><td><b>Type</b></td><td>${d.deviceType}</td></tr>
+        <tr><td><b>Blocked</b></td><td>${d.blocked ? '⚠ Yes' : 'No'}</td></tr>
+        <tr><td><b>Locked</b></td><td>${d.locked === null ? 'Unknown' : d.locked ? 'Yes' : 'No'}</td></tr>
+        <tr><td><b>eSIM</b></td><td>${d.esim}</td></tr>
+        <tr><td><b>5G</b></td><td>${d.fiveG ? 'Yes' : 'No'}</td></tr>
+        <tr><td><b>VoLTE</b></td><td>${d.volte ? 'Yes' : 'No'}</td></tr>
+        <tr><td><b>LTE</b></td><td>${d.lte ? 'Yes' : 'No'}</td></tr>
+      </table>`;
+  });
 </script>
 </body>
 </html>
