@@ -16,13 +16,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
-        run: |
-          mkdir -p dist
-          cp index.html tac-database.json dist/
-
       - name: Deploy
-        run: npx wrangler deploy
+        run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 5313f8b98e20a8915418b2683ad7278c

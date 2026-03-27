@@ -1,6 +1,11 @@
 {
   "name": "imei-generator",
   "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html tac-database.json dist/",
+    "deploy": "npm run build && npx wrangler deploy",
+    "dev": "npx wrangler dev"
+  },
   "devDependencies": {
     "wrangler": "^4.0.0"
   }
