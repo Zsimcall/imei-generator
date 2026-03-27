@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Agent sessions:** Read `agent/BOOTSTRAP.md` first for orientation, then `agent/state.md` for current work. This file covers architecture detail.
+
 ## Deployment
 
 **Production:** Cloudflare Workers — deployed automatically via GitHub Actions on every push to `main`.
