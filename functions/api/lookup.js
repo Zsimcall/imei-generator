@@ -22,32 +22,29 @@ export async function onRequestPost({ request, env }) {
     return json({ success: false, error: 'Must be exactly 15 digits.' }, 400);
   }
 
-  if (!env.IMEI_INFO_API_KEY) {
+  if (!env.IMEICHECK_API_KEY) {
     return json({ success: false, error: 'Lookup not configured (missing API key).' }, 500);
   }
 
-  // Service 0 = Basic IMEI Check
-  const url = `https://dash.imei.info/api/check/0/?API_KEY=${env.IMEI_INFO_API_KEY}&imei=${imei}`;
+  // Service 11: IMEI to Brand/Model/Name — $0.01, returns structured object
+  const url = `https://alpha.imeicheck.com/api/php-api/create?key=${env.IMEICHECK_API_KEY}&service=11&imei=${imei}`;
   const resp = await fetch(url);
-  const body = await resp.json();
 
   if (!resp.ok) {
-    return json({ success: false, error: body.detail || `IMEI.info error ${resp.status}` }, 502);
+    return json({ success: false, error: `imeicheck.com error: ${resp.status}` }, 502);
   }
 
-  // 202 = result still processing (async service)
-  if (resp.status === 202) {
-    return json({ success: false, error: 'Result is still processing — try again in a few seconds.' });
-  }
+  const body = await resp.json();
 
-  if (body.status === 'Rejected' || body.status === 'Refunded') {
-    return json({ success: false, error: `Check ${body.status.toLowerCase()}.` });
+  if (body.status !== 'success') {
+    return json({ success: false, error: body.result || body.status || 'Lookup failed.' });
   }
 
   return json({
     success: true,
     imei: body.imei,
-    service: body.service,
-    result: body.result,
+    brand: body.object?.brand  || '—',
+    name:  body.object?.name   || '—',
+    model: body.object?.model  || '—',
   });
 }
