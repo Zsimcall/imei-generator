@@ -719,20 +719,17 @@
       return;
     }
 
-    const d = result.data;
+    function renderValue(v) {
+      if (v === null || v === undefined) return '<em>—</em>';
+      if (typeof v === 'object') return `<pre style="margin:0;white-space:pre-wrap">${JSON.stringify(v, null, 2)}</pre>`;
+      return String(v).replace(/</g, '&lt;');
+    }
+    const rows = Object.entries(result.result || {})
+      .map(([k, v]) => `<tr><td><b>${k}</b></td><td>${renderValue(v)}</td></tr>`)
+      .join('');
     resultDiv.innerHTML = `
-      <table>
-        <tr><td><b>TAC</b></td><td>${d.tac}</td></tr>
-        <tr><td><b>Make</b></td><td>${d.make}</td></tr>
-        <tr><td><b>Model</b></td><td>${d.model}</td></tr>
-        <tr><td><b>Type</b></td><td>${d.deviceType}</td></tr>
-        <tr><td><b>Blocked</b></td><td>${d.blocked ? '⚠ Yes' : 'No'}</td></tr>
-        <tr><td><b>Locked</b></td><td>${d.locked === null ? 'Unknown' : d.locked ? 'Yes' : 'No'}</td></tr>
-        <tr><td><b>eSIM</b></td><td>${d.esim}</td></tr>
-        <tr><td><b>5G</b></td><td>${d.fiveG ? 'Yes' : 'No'}</td></tr>
-        <tr><td><b>VoLTE</b></td><td>${d.volte ? 'Yes' : 'No'}</td></tr>
-        <tr><td><b>LTE</b></td><td>${d.lte ? 'Yes' : 'No'}</td></tr>
-      </table>`;
+      <p style="margin-bottom:8px;color:#666">Service: ${result.service} &nbsp;|&nbsp; IMEI: ${result.imei}</p>
+      <table>${rows || '<tr><td colspan="2">No data returned.</td></tr>'}</table>`;
   });
 </script>
 </body>
